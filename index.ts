@@ -102,7 +102,8 @@ export function parseCML(text: string, trim: boolean=false): CMLTree {
     const parentalStack: CMLObject[] = [];
     let stream: string = '';
     let escapeMode: boolean = false;
-    for (const ch of text.split('')) {
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
         if (escapeMode) {
             if (ch === '<' || ch === '>') {
                 stream += ch;
