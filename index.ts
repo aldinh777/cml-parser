@@ -97,7 +97,17 @@ function findTag(text: string): TagResult {
     return { tag: tag.join(''), props, previousText: '' };
 }
 
-export function parseCML(text: string, trim: boolean=false): CMLTree {
+function cleanTrim(text: string): string {
+    const trimmed = text.trim();
+    if (trimmed) {
+        const leftSpace = text.match(/^\s/) ? ' ' : '';
+        const rightSpace = text.match(/\s$/) ? ' ' : '';
+        return leftSpace + trimmed + rightSpace;
+    }
+    return trimmed;
+}
+
+export function parseCML(text: string, trim: boolean = false): CMLTree {
     const result: CMLTree = [];
     const parentalStack: CMLObject[] = [];
     let stream: string = '';
@@ -126,7 +136,7 @@ export function parseCML(text: string, trim: boolean=false): CMLTree {
             stream = '';
             if (previousText) {
                 if (trim) {
-                    const trimmedPrevious = previousText.trim();
+                    const trimmedPrevious = cleanTrim(previousText);
                     if (trimmedPrevious) {
                         parentChildren.push(trimmedPrevious);
                     }
@@ -142,7 +152,7 @@ export function parseCML(text: string, trim: boolean=false): CMLTree {
             if (stream) {
                 if (parent) {
                     if (trim) {
-                        const trimmedStream = stream.trim();
+                        const trimmedStream = cleanTrim(stream);
                         if (trimmedStream) {
                             parent.children.push(trimmedStream);
                         }
@@ -158,10 +168,10 @@ export function parseCML(text: string, trim: boolean=false): CMLTree {
     }
     if (stream) {
         if (trim) {
-            const trimmedStream = stream.trim();
+            const trimmedStream = cleanTrim(stream);
             if (trimmedStream) {
                 result.push(trimmedStream);
-            }    
+            }
         } else {
             result.push(stream);
         }
