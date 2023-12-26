@@ -23,10 +23,10 @@ function findTag(text: string): TagResult {
     let propname: string[] = [];
     let value: string[] = [];
     let props: Properties = {};
-    let tagFlag: boolean = false;
-    let propFindFlag: boolean = false;
-    let propFlag: boolean = false;
-    let valueFlag: boolean = false;
+    let tagFlag = false;
+    let propFindFlag = false;
+    let propFlag = false;
+    let valueFlag = false;
     let propsStack: PropertyPair[] = [];
     for (let i = text.length - 1; i >= 0; i--) {
         const ch = text[i];
@@ -36,59 +36,37 @@ function findTag(text: string): TagResult {
             } else {
                 value.unshift(ch);
             }
-            continue;
-        } else {
-            if (ch === '"') {
-                valueFlag = true;
-                continue;
-            }
-        }
-        if (propFindFlag) {
+        } else if (ch === '"') {
+            valueFlag = true;
+        } else if (propFindFlag) {
             if (propFlag) {
                 if (ch.match(/\s/)) {
                     propsStack.unshift({
                         prop: propname.join(''),
                         val: value.join('')
                     });
-                    propname = [];
-                    value = [];
-                    propFindFlag = false;
-                    propFlag = false;
+                    [propname, value, propFindFlag, propFlag] = [[], [], false, false];
                 } else {
                     propname.unshift(ch);
                 }
-            } else {
-                if (!ch.match(/\s/)) {
-                    propFlag = true;
-                    propname.unshift(ch);
-                }
+            } else if (!ch.match(/\s/)) {
+                propFlag = true;
+                propname.unshift(ch);
             }
-            continue;
-        } else {
-            if (ch === '=') {
-                propFindFlag = true;
-                continue;
-            }
-        }
-        if (tagFlag) {
+        } else if (ch === '=') {
+            propFindFlag = true;
+        } else if (tagFlag) {
             if (ch.match(/\s/)) {
                 for (const { prop, val } of propsStack) {
                     props[prop] = val;
                 }
-                return {
-                    tag: tag.join(''),
-                    props: props,
-                    previousText: text.substring(0, i + 1)
-                };
+                return { tag: tag.join(''), props, previousText: text.substring(0, i + 1) };
             } else {
                 tag.unshift(ch);
             }
-            continue;
-        } else {
-            if (!ch.match(/\s/)) {
-                tagFlag = true;
-                tag.unshift(ch);
-            }
+        } else if (!ch.match(/\s/)) {
+            tagFlag = true;
+            tag.unshift(ch);
         }
     }
     for (const { prop, val } of propsStack) {
@@ -99,35 +77,25 @@ function findTag(text: string): TagResult {
 
 function cleanTrim(text: string): string {
     const trimmed = text.trim();
-    if (trimmed) {
-        const leftSpace = text.match(/^\s/) ? ' ' : '';
-        const rightSpace = text.match(/\s$/) ? ' ' : '';
-        return leftSpace + trimmed + rightSpace;
-    }
-    return trimmed;
+    if (!trimmed) return trimmed;
+    const leftSpace = text.startsWith(' ') ? ' ' : '';
+    const rightSpace = text.endsWith(' ') ? ' ' : '';
+    return leftSpace + trimmed + rightSpace;
 }
 
 export function parseCML(text: string, trim: boolean = false): CMLTree {
     const result: CMLTree = [];
     const parentalStack: CMLObject[] = [];
-    let stream: string = '';
-    let escapeMode: boolean = false;
+    let stream = '';
+    let escapeMode = false;
     for (let i = 0; i < text.length; i++) {
         const ch = text[i];
         if (escapeMode) {
-            if (ch === '<' || ch === '>') {
-                stream += ch;
-            } else {
-                stream += '\\' + ch;
-            }
+            stream += ch === '<' || ch === '>' ? ch : '/' + ch;
             escapeMode = false;
-            continue;
-        }
-        if (ch === '\\') {
+        } else if (ch === '/') {
             escapeMode = true;
-            continue;
-        }
-        if (ch === '<') {
+        } else if (ch === '<') {
             const { tag, props, previousText } = findTag(stream);
             let parentChildren = result;
             if (parentalStack.length) {
@@ -135,13 +103,9 @@ export function parseCML(text: string, trim: boolean = false): CMLTree {
             }
             stream = '';
             if (previousText) {
-                if (trim) {
-                    const trimmedPrevious = cleanTrim(previousText);
-                    if (trimmedPrevious) {
-                        parentChildren.push(trimmedPrevious);
-                    }
-                } else {
-                    parentChildren.push(previousText);
+                const trimmedPrevious = trim ? cleanTrim(previousText) : previousText;
+                if (trimmedPrevious) {
+                    parentChildren.push(trimmedPrevious);
                 }
             }
             const elem: CMLObject = { tag, props, children: [] };
@@ -151,13 +115,9 @@ export function parseCML(text: string, trim: boolean = false): CMLTree {
             const parent = parentalStack.pop();
             if (stream) {
                 if (parent) {
-                    if (trim) {
-                        const trimmedStream = cleanTrim(stream);
-                        if (trimmedStream) {
-                            parent.children.push(trimmedStream);
-                        }
-                    } else {
-                        parent.children.push(stream);
+                    const trimmedStream = trim ? cleanTrim(stream) : stream;
+                    if (trimmedStream) {
+                        parent.children.push(trimmedStream);
                     }
                 }
                 stream = '';
@@ -167,36 +127,29 @@ export function parseCML(text: string, trim: boolean = false): CMLTree {
         }
     }
     if (stream) {
-        if (trim) {
-            const trimmedStream = cleanTrim(stream);
-            if (trimmedStream) {
-                result.push(trimmedStream);
-            }
-        } else {
-            result.push(stream);
+        const trimmedStream = trim ? cleanTrim(stream) : stream;
+        if (trimmedStream) {
+            result.push(trimmedStream);
         }
     }
     return result;
 }
 
-export function cmlTreeToXMLString(tree: CMLTree): string {
-    let result = '';
-    for (const item of tree) {
-        if (typeof item === 'string') {
-            result += item;
-        } else {
+export function toXML(tree: CMLTree): string {
+    return tree
+        .map((item) => {
+            if (typeof item === 'string') {
+                return item;
+            }
             const { tag, props, children } = item;
-            const proplist: string[] = [];
-            for (const key in props) {
-                const value = props[key];
-                proplist.push(` ${key}="${value}"`);
-            }
+            const proplist = Object.entries(props)
+                .map(([key, value]) => ` ${key}="${value}"`)
+                .join('');
             if (children.length) {
-                result += `<${tag}${proplist.join('')}>${cmlTreeToXMLString(children)}</${tag}>`;
+                return `<${tag}${proplist}>${toXML(children)}</${tag}>`;
             } else {
-                result += `<${tag}${proplist.join('')}/>`;
+                return `<${tag}${proplist}/>`;
             }
-        }
-    }
-    return result;
+        })
+        .join('');
 }
