@@ -87,14 +87,16 @@ export function parseCML(text: string, trim: boolean = false): CMLTree {
     const result: CMLTree = [];
     const parentalStack: CMLObject[] = [];
     let stream = '';
-    let escapeMode = false;
     for (let i = 0; i < text.length; i++) {
         const ch = text[i];
-        if (escapeMode) {
-            stream += ch === '<' || ch === '>' ? ch : '/' + ch;
-            escapeMode = false;
-        } else if (ch === '/') {
-            escapeMode = true;
+        if (ch === '/') {
+            const next = text[i + 1];
+            if (next === '<' || next === '>') {
+                stream += next;
+                i++;
+            } else {
+                stream += ch;
+            }
         } else if (ch === '<') {
             const { tag, props, previousText } = findTag(stream);
             let parentChildren = result;
