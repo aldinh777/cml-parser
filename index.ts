@@ -1,14 +1,7 @@
 export type CMLTree = (CMLObject | string)[];
 
-interface PropertyPair {
-    prop: string;
-    val: string;
-}
-interface TagResult {
-    tag: string;
-    props: Properties;
-    previousText: string;
-}
+type PropertyPair = [prop: string, val: string];
+type TagResult = [tag: string, props: Properties, previousText: string];
 interface Properties {
     [key: string]: any;
 }
@@ -41,10 +34,7 @@ function findTag(text: string): TagResult {
         } else if (propFindFlag) {
             if (propFlag) {
                 if (ch.match(/\s/)) {
-                    propsStack.unshift({
-                        prop: propname.join(''),
-                        val: value.join('')
-                    });
+                    propsStack.unshift([propname.join(''), value.join('')]);
                     [propname, value, propFindFlag, propFlag] = [[], [], false, false];
                 } else {
                     propname.unshift(ch);
@@ -57,10 +47,10 @@ function findTag(text: string): TagResult {
             propFindFlag = true;
         } else if (tagFlag) {
             if (ch.match(/\s/)) {
-                for (const { prop, val } of propsStack) {
+                for (const [prop, val] of propsStack) {
                     props[prop] = val;
                 }
-                return { tag: tag.join(''), props, previousText: text.substring(0, i + 1) };
+                return [tag.join(''), props, text.substring(0, i + 1)];
             } else {
                 tag.unshift(ch);
             }
@@ -69,10 +59,10 @@ function findTag(text: string): TagResult {
             tag.unshift(ch);
         }
     }
-    for (const { prop, val } of propsStack) {
+    for (const [prop, val] of propsStack) {
         props[prop] = val;
     }
-    return { tag: tag.join(''), props, previousText: '' };
+    return [tag.join(''), props, ''];
 }
 
 function cleanTrim(text: string): string {
@@ -89,7 +79,7 @@ export function parseCML(text: string, trim: boolean = false): CMLTree {
     let stream = '';
     for (let i = 0; i < text.length; i++) {
         const ch = text[i];
-        if (ch === '/') {
+        if (ch === '\\') {
             const next = text[i + 1];
             if (next === '<' || next === '>') {
                 stream += next;
@@ -98,7 +88,7 @@ export function parseCML(text: string, trim: boolean = false): CMLTree {
                 stream += ch;
             }
         } else if (ch === '<') {
-            const { tag, props, previousText } = findTag(stream);
+            const [tag, props, previousText] = findTag(stream);
             let parentChildren = result;
             if (parentalStack.length) {
                 parentChildren = parentalStack[parentalStack.length - 1].children;
@@ -135,23 +125,4 @@ export function parseCML(text: string, trim: boolean = false): CMLTree {
         }
     }
     return result;
-}
-
-export function toXML(tree: CMLTree): string {
-    return tree
-        .map((item) => {
-            if (typeof item === 'string') {
-                return item;
-            }
-            const { tag, props, children } = item;
-            const proplist = Object.entries(props)
-                .map(([key, value]) => ` ${key}="${value}"`)
-                .join('');
-            if (children.length) {
-                return `<${tag}${proplist}>${toXML(children)}</${tag}>`;
-            } else {
-                return `<${tag}${proplist}/>`;
-            }
-        })
-        .join('');
 }

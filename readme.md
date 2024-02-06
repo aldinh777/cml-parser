@@ -16,7 +16,7 @@ div <
 
 ```
 This is equal to html tag
-```
+```html
 <div>
     <h1>This is Title</h1>
     <p>
